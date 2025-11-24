@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="NeonBeat — a small in-browser step sequencer with synth and drum voices. Create beats and melodies in your browser.">
+    <title>NeonBeat Studio</title>
+    <!-- Optional: add a favicon here -->
+    <!-- <link rel="icon" href="/favicon.ico"> -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* --- Custom Range Slider Styling --- */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #c084fc;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px #c084fc;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #4b5563;
+            border-radius: 2px;
+        }
+        
+        /* --- Sequencer Cell Colors --- */
+        .step-active {
+            border-color: rgba(255, 255, 255, 0.8) !important;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+        
+        .note-on-melody {
+            background-color: #a855f7 !important; /* Purple */
+            box-shadow: 0 0 15px #a855f7;
+            border-color: #a855f7 !important;
+        }
+        
+        .note-on-drum {
+            background-color: #3b82f6 !important; /* Blue */
+            box-shadow: 0 0 15px #3b82f6;
+            border-color: #3b82f6 !important;
+        }
+
+        /* --- Scrollbar for smaller screens --- */
+        ::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+        
+        /* Keep the page selectable for accessibility */
+        body {
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center font-sans">
+    <!-- Skip link lets keyboard users jump directly to the main sequencer -->
+    <a href="#main" class="skip-link">Skip to content</a>
+
+    <!-- Header & Controls -->
+    <div class="w-full max-w-5xl p-6 bg-gray-800 shadow-2xl border-b border-gray-700 sticky top-0 z-20">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            
+            <!-- Brand -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg shadow-lg flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">NEONBEAT</h1>
+            </div>
+
+            <!-- Transport Controls -->
+            <div class="flex items-center gap-4 bg-gray-900 p-2 rounded-xl border border-gray-700">
+                <button id="playBtn" aria-label="Play" title="Play" aria-pressed="false" class="w-12 h-12 rounded-full bg-green-500 hover:bg-green-400 text-white shadow-lg shadow-green-500/30 transition-all flex items-center justify-center focus-ring">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </button>
+                <button id="stopBtn" aria-label="Stop" title="Stop" class="w-12 h-12 rounded-full bg-red-500 hover:bg-red-400 text-white shadow-lg shadow-red-500/30 transition-all flex items-center justify-center focus-ring">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                    </svg>
+                </button>
+                <div class="h-8 w-px bg-gray-700 mx-2"></div>
+                <button id="clearBtn" aria-label="Clear composition" title="Clear composition" class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition focus-ring">Clear All</button>
+            </div>
+
+            <!-- Settings -->
+            <div class="flex items-center gap-6">
+                <div class="flex flex-col items-center">
+                    <label class="text-xs text-gray-400 uppercase tracking-wider mb-1">BPM: <span id="bpmVal" class="text-purple-400 font-bold" aria-live="polite">120</span></label>
+                    <input type="range" id="bpmSlider" min="60" max="200" value="120" class="w-32" aria-label="BPM slider">
+                </div>
+                <div class="flex flex-col items-start">
+                    <label class="text-xs text-gray-400 uppercase tracking-wider mb-1">Synth Wave</label>
+                    <select id="waveType" class="bg-gray-700 text-xs text-white rounded px-2 py-1 border border-gray-600 outline-none focus:border-purple-500">
+                        <option value="sine">Sine (Soft)</option>
+                        <option value="triangle" selected>Triangle (Chill)</option>
+                        <option value="sawtooth">Sawtooth (Sharp)</option>
+                        <option value="square">Square (8-bit)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Sequencer Area -->
+    <main id="main" role="main" class="flex-1 w-full max-w-5xl p-4 md:p-8 overflow-x-auto">
+        
+        <div class="min-w-[800px]">
+            
+            <!-- Grid Header (Step Indicators) -->
+            <div class="grid grid-cols-[120px_repeat(16,1fr)] gap-1 mb-2">
+                <div class="text-right text-xs text-gray-500 pr-4 self-end pb-1 font-mono">STEP</div>
+                <!-- JS will generate indicators -->
+                <div id="stepIndicators" class="contents" aria-hidden="true"></div>
+            </div>
+
+            <!-- MELODY SECTION -->
+            <div class="mb-8">
+                <h3 class="text-sm font-bold text-purple-400 mb-2 pl-2 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-purple-500 inline-block"></span> MELODY (C Minor Pentatonic)
+                </h3>
+                <div id="melodyGrid" class="flex flex-col gap-1">
+                    <!-- Melody Rows Generated by JS -->
+                </div>
+            </div>
+
+            <!-- DRUM SECTION -->
+            <div class="mb-8">
+                <h3 class="text-sm font-bold text-blue-400 mb-2 pl-2 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span> RHYTHM
+                </h3>
+                <div id="drumGrid" class="flex flex-col gap-1">
+                    <!-- Drum Rows Generated by JS -->
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Instructions Footer -->
+    <div class="w-full bg-gray-800 py-4 text-center text-gray-500 text-sm border-t border-gray-700">
+        <p>Click grid cells to compose • Spacebar to Play/Stop • Chrome/Edge recommended for best audio timing</p>
+    </div>
+
+    <script>
+        /*
+         * NeonBeat Studio logic
+         * -----------------------------------------
+         * 1. Bootstraps Web Audio (synth + drums)
+         * 2. Builds the 16-step grid for melody + rhythm
+         * 3. Handles playback scheduling and UI highlights
+         * The goal of the comments below is to guide newcomers
+         * through each section without altering behavior.
+         */
+
+        // --- Audio Context Setup ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = new AudioContext();
+        
+        // Master Volume
+        const masterGain = audioCtx.createGain();
+        masterGain.gain.value = 0.4; // Keep it from clipping
+        masterGain.connect(audioCtx.destination);
+
+        // --- Music Theory Constants ---
+        // Pitch names are ordered highest (C5) to lowest (G3)
+        const NOTES = [
+            { name: "C5", freq: 523.25 },
+            { name: "Bb4", freq: 466.16 },
+            { name: "G4", freq: 392.00 },
+            { name: "F4", freq: 349.23 },
+            { name: "Eb4", freq: 311.13 },
+            { name: "C4", freq: 261.63 },
+            { name: "Bb3", freq: 233.08 },
+            { name: "G3", freq: 196.00 }
+        ];
+
+        const DRUMS = [
+            { name: "Hi-Hat", type: "hat" },
+            { name: "Clap", type: "clap" },
+            { name: "Snare", type: "snare" },
+            { name: "Kick", type: "kick" }
+        ];
+
+        const STEPS = 16; // classic 16-step sequencer
+        let bpm = 120;
+        let isPlaying = false;
+        let currentStep = 0;
+        let nextNoteTime = 0.0;
+        let timerID;
+        let lookahead = 25.0; // How frequently to call scheduling function (ms)
+        let scheduleAheadTime = 0.1; // How far ahead to schedule audio (sec)
+
+        // --- State Management ---
+        // 2D arrays: [row][step] -> boolean
+        let melodyState = Array(NOTES.length).fill(null).map(() => Array(STEPS).fill(false));
+        let drumState = Array(DRUMS.length).fill(null).map(() => Array(STEPS).fill(false));
+
+        // --- DOM Elements ---
+        const melodyGridEl = document.getElementById('melodyGrid');
+        const drumGridEl = document.getElementById('drumGrid');
+        const stepIndicatorsEl = document.getElementById('stepIndicators');
+        const playBtn = document.getElementById('playBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const bpmSlider = document.getElementById('bpmSlider');
+        const bpmVal = document.getElementById('bpmVal');
+        const waveTypeSel = document.getElementById('waveType');
+
+        // --- UI Generation ---
+        // Build the grid once; event delegation handles interactions later
+
+        function createGrid() {
+            // Create Step Indicators with dataset for accessibility and visuals
+            for (let i = 0; i < STEPS; i++) {
+                const indicator = document.createElement('div');
+                indicator.className = `h-1 bg-gray-700 rounded step-marker step-${i}`;
+                indicator.setAttribute('data-step', i);
+                if (i % 4 === 0) indicator.classList.add('bg-gray-500');
+                stepIndicatorsEl.appendChild(indicator);
+            }
+
+            // Create Melody Rows
+            NOTES.forEach((note, rowIndex) => {
+                const row = document.createElement('div');
+                row.className = "grid grid-cols-[120px_repeat(16,1fr)] gap-1";
+                
+                // Label
+                const label = document.createElement('div');
+                label.className = "text-right text-xs text-gray-400 pr-4 self-center font-mono font-bold";
+                label.innerText = note.name;
+                row.appendChild(label);
+
+                // Cells
+                for (let step = 0; step < STEPS; step++) {
+                    const cell = document.createElement('div');
+                    cell.className = `h-8 bg-gray-800 border border-gray-700 rounded cursor-pointer hover:bg-gray-700 transition-colors duration-75 melody-cell`;
+                    cell.dataset.row = rowIndex;
+                    cell.dataset.step = step;
+
+                    // Make interactive and keyboard accessible
+                    cell.setAttribute('role', 'button');
+                    cell.tabIndex = 0;
+                    cell.setAttribute('aria-pressed', 'false');
+                    cell.classList.add('focus-ring');
+                    
+                    // Beat markers visual aid
+                    if (step % 4 === 0) cell.classList.add('border-l-gray-500');
+
+                    // Interaction handled via event delegation (added after grid init)
+
+                    row.appendChild(cell);
+                }
+                melodyGridEl.appendChild(row);
+            });
+
+            // Create Drum Rows
+            DRUMS.forEach((drum, rowIndex) => {
+                const row = document.createElement('div');
+                row.className = "grid grid-cols-[120px_repeat(16,1fr)] gap-1";
+                
+                // Label
+                const label = document.createElement('div');
+                label.className = "text-right text-xs text-gray-400 pr-4 self-center font-mono font-bold uppercase";
+                label.innerText = drum.name;
+                row.appendChild(label);
+
+                // Cells
+                for (let step = 0; step < STEPS; step++) {
+                    const cell = document.createElement('div');
+                    cell.className = `h-8 bg-gray-800 border border-gray-700 rounded cursor-pointer hover:bg-gray-700 transition-colors duration-75 drum-cell`;
+                    cell.dataset.row = rowIndex;
+                    cell.dataset.step = step;
+
+                    // Accessibility & keyboard
+                    cell.setAttribute('role', 'button');
+                    cell.tabIndex = 0;
+                    cell.setAttribute('aria-pressed', 'false');
+                    cell.classList.add('focus-ring');
+
+                    if (step % 4 === 0) cell.classList.add('border-l-gray-500');
+
+                    // Interaction handled via event delegation (added after grid init)
+                    row.appendChild(cell);
+                }
+                drumGridEl.appendChild(row);
+            });
+        }
+
+        // --- Interaction Logic ---
+        // Toggle helpers keep DOM + internal state synchronized
+
+        function toggleMelody(row, step, el) {
+            melodyState[row][step] = !melodyState[row][step];
+            el.classList.toggle('note-on-melody');
+            // Update ARIA state for assistive tech
+            el.setAttribute('aria-pressed', melodyState[row][step] ? 'true' : 'false');
+            if(melodyState[row][step]) playSynth(NOTES[row].freq, audioCtx.currentTime, 0.1);
+        }
+
+        function toggleDrum(row, step, el) {
+            drumState[row][step] = !drumState[row][step];
+            el.classList.toggle('note-on-drum');
+            el.setAttribute('aria-pressed', drumState[row][step] ? 'true' : 'false');
+            if(drumState[row][step]) triggerDrum(DRUMS[row].type, audioCtx.currentTime);
+        }
+
+        // --- Audio Engine ---
+        // playSynth covers pitched notes, triggerDrum handles noise/osc drums
+
+        function playSynth(freq, time, duration = 0.2) {
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.type = waveTypeSel.value;
+            osc.frequency.value = freq;
+            
+            osc.connect(gainNode);
+            gainNode.connect(masterGain);
+            
+            // Envelope
+            gainNode.gain.setValueAtTime(0, time);
+            gainNode.gain.linearRampToValueAtTime(0.3, time + 0.01); // Attack
+            gainNode.gain.exponentialRampToValueAtTime(0.001, time + duration); // Decay
+            
+            osc.start(time);
+            osc.stop(time + duration);
+        }
+
+        function triggerDrum(type, time) {
+            const gainNode = audioCtx.createGain();
+            gainNode.connect(masterGain);
+
+            // Kick uses oscillator
+            if (type === 'kick') {
+                const osc = audioCtx.createOscillator();
+                osc.frequency.setValueAtTime(150, time);
+                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+                gainNode.gain.setValueAtTime(1, time);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+                osc.connect(gainNode);
+                osc.start(time);
+                osc.stop(time + 0.5);
+                return;
+            }
+
+            // For noise-based drums, create a reusable noise buffer
+            function createNoiseSource() {
+                const bufferSize = audioCtx.sampleRate * 1; // 1s buffer
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                const src = audioCtx.createBufferSource();
+                src.buffer = buffer;
+                return src;
+            }
+
+            const noise = createNoiseSource();
+            let filter = audioCtx.createBiquadFilter();
+            if (type === 'snare') {
+                filter.type = 'highpass';
+                filter.frequency.value = 1000;
+                gainNode.gain.setValueAtTime(0.7, time);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+                noise.connect(filter);
+            } else if (type === 'hat') {
+                filter.type = 'highpass';
+                filter.frequency.value = 5000;
+                gainNode.gain.setValueAtTime(0.3, time);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
+                noise.connect(filter);
+            } else if (type === 'clap') {
+                filter.type = 'bandpass';
+                filter.frequency.value = 1500;
+                gainNode.gain.setValueAtTime(0, time);
+                gainNode.gain.linearRampToValueAtTime(0.5, time + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.15);
+                noise.connect(filter);
+            } else {
+                // default: short high hat
+                filter.type = 'highpass';
+                filter.frequency.value = 4000;
+                gainNode.gain.setValueAtTime(0.2, time);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
+                noise.connect(filter);
+            }
+
+            filter.connect(gainNode);
+            noise.start(time);
+            noise.stop(time + 0.5);
+        }
+
+        // --- Sequencer Loop ---
+        // scheduleNote queues audio slightly ahead for accurate timing
+
+        function nextNote() {
+            const secondsPerBeat = 60.0 / bpm;
+            // We are doing 16th notes, so 1/4th of a beat
+            nextNoteTime += 0.25 * secondsPerBeat;
+            currentStep++;
+            if (currentStep === STEPS) {
+                currentStep = 0;
+            }
+        }
+
+        function scheduleNote(stepNumber, time) {
+            // 1. Update UI visually to follow the beat
+            // We use requestAnimationFrame to sync visual update with drawing, 
+            // but trigger it based on audio time logic
+            setTimeout(() => {
+                updateVisuals(stepNumber);
+            }, (time - audioCtx.currentTime) * 1000);
+
+            // 2. Play Melody
+            NOTES.forEach((note, row) => {
+                if (melodyState[row][stepNumber]) {
+                    playSynth(note.freq, time, 0.3);
+                }
+            });
+
+            // 3. Play Drums
+            DRUMS.forEach((drum, row) => {
+                if (drumState[row][stepNumber]) {
+                    triggerDrum(drum.type, time);
+                }
+            });
+        }
+
+        function scheduler() {
+            // Schedule any notes that fall within the lookahead window
+            while (nextNoteTime < audioCtx.currentTime + scheduleAheadTime) {
+                scheduleNote(currentStep, nextNoteTime);
+                nextNote();
+            }
+            timerID = setTimeout(scheduler, lookahead);
+        }
+
+        function updateVisuals(step) {
+            // Reset all active steps markers
+            document.querySelectorAll('.step-marker').forEach(el => {
+                el.classList.remove('bg-purple-500', 'shadow-glow');
+                el.classList.add(el.dataset.step % 4 === 0 ? 'bg-gray-500' : 'bg-gray-700');
+            });
+            
+            // Highlight current step indicator
+            const currentIndicator = document.querySelector(`.step-${step}`);
+            if (currentIndicator) {
+                currentIndicator.classList.remove('bg-gray-700', 'bg-gray-500');
+                currentIndicator.classList.add('bg-purple-500', 'shadow-[0_0_10px_#a855f7]');
+            }
+
+            // Highlight grid columns
+            // (Optional: could add a column highlight effect here)
+        }
+
+        // --- Controls Logic ---
+        // Buttons, sliders, and keyboard shortcuts live here
+
+        playBtn.addEventListener('click', () => {
+            if (isPlaying) return;
+            
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            isPlaying = true;
+            currentStep = 0;
+            nextNoteTime = audioCtx.currentTime;
+            scheduler();
+            playBtn.classList.add('ring-2', 'ring-green-400');
+            playBtn.setAttribute('aria-pressed', 'true');
+        });
+
+        stopBtn.addEventListener('click', () => {
+            isPlaying = false;
+            clearTimeout(timerID);
+            playBtn.classList.remove('ring-2', 'ring-green-400');
+            playBtn.setAttribute('aria-pressed', 'false');
+            // Reset visuals
+            document.querySelectorAll('.step-marker').forEach((el, i) => {
+                el.classList.remove('bg-purple-500', 'shadow-[0_0_10px_#a855f7]');
+                el.classList.add(i % 4 === 0 ? 'bg-gray-500' : 'bg-gray-700');
+            });
+        });
+
+        clearBtn.addEventListener('click', () => {
+            melodyState = melodyState.map(row => row.fill(false));
+            drumState = drumState.map(row => row.fill(false));
+            document.querySelectorAll('.melody-cell').forEach(el => {
+                el.classList.remove('note-on-melody');
+                el.setAttribute('aria-pressed', 'false');
+            });
+            document.querySelectorAll('.drum-cell').forEach(el => {
+                el.classList.remove('note-on-drum');
+                el.setAttribute('aria-pressed', 'false');
+            });
+        });
+
+        bpmSlider.addEventListener('input', (e) => {
+            bpm = e.target.value;
+            bpmVal.innerText = bpm;
+        });
+
+        // Keyboard shortcut
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault(); // Stop scrolling
+                if (isPlaying) stopBtn.click();
+                else playBtn.click();
+            }
+        });
+
+        // Initialize Grid on Load
+        createGrid();
+
+        // Event delegation for grid interactions (shorter than per-cell listeners)
+        function gridClickHandler(e) {
+            const cell = e.target.closest('[data-step]');
+            if (!cell) return;
+            const row = +cell.dataset.row;
+            const step = +cell.dataset.step;
+            if (cell.classList.contains('melody-cell')) toggleMelody(row, step, cell);
+            else if (cell.classList.contains('drum-cell')) toggleDrum(row, step, cell);
+        }
+
+        function gridKeyHandler(e) {
+            if (e.key !== ' ' && e.key !== 'Enter') return;
+            const cell = e.target.closest('[data-step]');
+            if (!cell) return;
+            e.preventDefault();
+            const row = +cell.dataset.row;
+            const step = +cell.dataset.step;
+            if (cell.classList.contains('melody-cell')) toggleMelody(row, step, cell);
+            else if (cell.classList.contains('drum-cell')) toggleDrum(row, step, cell);
+        }
+
+        melodyGridEl.addEventListener('click', gridClickHandler);
+        drumGridEl.addEventListener('click', gridClickHandler);
+        melodyGridEl.addEventListener('keydown', gridKeyHandler);
+        drumGridEl.addEventListener('keydown', gridKeyHandler);
+
+    </script>
+</body>
+</html>
